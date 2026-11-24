@@ -347,9 +347,19 @@ function lockShell(inner) {
   modalRoot.innerHTML = '';
   app.innerHTML = `<div class="lock"><div class="lock-card">
     <div class="logo">秘密の手帳</div>
-    <div class="mascot portrait"><img src="icons/portrait-v2.png" alt=""></div>
+    <div class="mascot portrait"><img src="icons/portrait-v2.png" alt="" id="portrait"></div>
     ${inner}
   </div></div>`;
+  // 頭像載入失敗時改顯示預設的便利貼小人，不留空白
+  const portrait = $('#portrait');
+  const fallback = () => {
+    const box = portrait.parentElement;
+    if (!box) return;
+    box.classList.remove('portrait');
+    box.innerHTML = MASCOT;
+  };
+  portrait.addEventListener('error', fallback);
+  if (portrait.complete && !portrait.naturalWidth) fallback();
 }
 
 const pwInput = (id, label, ac, extra = '') => `
@@ -1353,7 +1363,13 @@ document.addEventListener('click', (e) => {
 });
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  // 新版離線快取接手時，畫面上還是舊版程式，可能找不到新檔案。
+  // 停在登入畫面就立刻重新載入；已解鎖則等下次上鎖（lock 本來就會重新載入）時再換。
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !S) location.reload();
+  });
 }
 
 history.replaceState({ m: 0 }, '');
