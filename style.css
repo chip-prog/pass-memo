@@ -22,6 +22,10 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 /* 根字級隨螢幕寬度變化：360px 寬的手機維持 16px，Pixel 8（412px）約 19px，所有 rem 尺寸一起等比放大 */
 html { -webkit-text-size-adjust: 100%; font-size: clamp(16px, 4.6vw, 19px); }
+/* 手機（由 boot.js 判斷）：不設上限，內容永遠填滿螢幕寬度 */
+html.phone { font-size: max(16px, 4.6vw); }
+html.phone .wrap, html.phone .sheet { max-width: none; }
+html.phone .fab { right: 1.125rem; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -278,9 +282,9 @@ textarea.input { resize: vertical; min-height: 5.25rem; }
   background: #d9dce6; margin: 0 auto 0.625rem;
 }
 @media (min-width: 640px) {
-  .modal { align-items: center; }
-  .sheet { border-radius: 1.375rem; max-height: 86vh; padding-bottom: 1.375rem; }
-  .sheet::before { display: none; }
+  html:not(.phone) .modal { align-items: center; }
+  html:not(.phone) .sheet { border-radius: 1.375rem; max-height: 86vh; padding-bottom: 1.375rem; }
+  html:not(.phone) .sheet::before { display: none; }
 }
 @keyframes fade { from { opacity: 0; } }
 @keyframes up { from { transform: translateY(1.875rem); opacity: .4; } }
