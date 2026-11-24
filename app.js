@@ -128,7 +128,10 @@ function cleanNote(n) {
     title: str(n.title, 200), username: str(n.username, 500), password: str(n.password, 1000),
     url: str(n.url, 2000), notes: str(n.notes, 20000),
     color: COLORS[n.color] ? n.color : 'sakura',
-    categoryId: str(n.categoryId, 64), imageId: str(n.imageId, 64),
+    categoryId: str(n.categoryId, 64),
+    // 小圖示與橫幅分開設定；舊版只有一張 imageId，就同時套用到兩處
+    iconId: str(n.iconId ?? n.imageId, 64),
+    bannerId: str(n.bannerId ?? n.imageId, 64),
     order: Number.isFinite(n.order) ? n.order : 0,
     createdAt: Number(n.createdAt) || 0,
   };
@@ -145,7 +148,8 @@ function cleanImage(i) {
   const base = { id: i.id.slice(0, 64), updatedAt: Number(i.updatedAt) || 0 };
   if (i.deleted) return { ...base, deleted: true };
   if (typeof i.data !== 'string' || i.data.length > 4e6 || !IMG_RE.test(i.data)) return null;
-  return { ...base, data: i.data };
+  const kind = i.kind === 'square' || i.kind === 'wide' ? i.kind : '';
+  return { ...base, data: i.data, ...(kind && { kind }) };
 }
 function normalizeData(d) {
   d = d && typeof d === 'object' ? d : {};
@@ -482,7 +486,7 @@ function enterApp() {
 
 /* ================= 主畫面 ================= */
 function avatarHTML(n, size = '') {
-  const img = imageData(n.imageId);
+  const img = imageData(n.iconId);
   return `<span class="avatar ${size}">${img ? `<img src="${esc(img)}" alt="">` : esc(letterOf(n))}</span>`;
 }
 
@@ -560,7 +564,7 @@ function visibleNotes() {
 }
 
 function stripHTML(n) {
-  const img = imageData(n.imageId);
+  const img = imageData(n.bannerId);
   const sub = hostOf(n.url) || firstLine(n.notes) || catById(n.categoryId)?.name || '';
   return `<li class="strip" data-id="${esc(n.id)}" style="${colorVars(n.color)}">
     <div class="strip-main">
@@ -660,7 +664,7 @@ function commitOrder(ids) {
 function openDetail(id) {
   const n = noteById(id);
   if (!n) return;
-  const img = imageData(n.imageId);
+  const img = imageData(n.bannerId);
   const href = normUrl(n.url);
   const cat = catById(n.categoryId);
   const row = (label, value, buttons, cls = '', vid = '') => `
@@ -718,7 +722,7 @@ function openDetail(id) {
 function openEdit(id) {
   const orig = id ? noteById(id) : null;
   const d = orig ? { ...orig } : {
-    title: '', username: '', password: '', url: '', notes: '', color: 'sakura', imageId: '',
+    title: '', username: '', password: '', url: '', notes: '', color: 'sakura', iconId: '', bannerId: '',
     categoryId: catById(view.cat) ? view.cat : '',
   };
 
@@ -743,15 +747,16 @@ function openEdit(id) {
     <div class="field"><span>顏色</span><div class="swatches" id="e-colors">
       ${Object.entries(COLORS).map(([k, c]) => `<button type="button" class="swatch ${k === d.color ? 'on' : ''}" data-color="${k}" style="${colorVars(k)}" aria-label="${c.name}"></button>`).join('')}
     </div></div>
-    <div class="field"><span>圖示</span><div class="img-pick">
-      <span id="e-av"></span>
+    ${Object.entries(IMG_SLOTS).map(([kind, slot]) => `
+    <div class="field"><span>${slot.label}</span><div class="img-pick">
+      <span id="e-prev-${kind}"></span>
       <div class="btns">
-        <button type="button" class="btn ghost" id="e-gallery">${icon('image')}圖庫</button>
-        <button type="button" class="btn ghost" id="e-upload">${icon('upload')}上傳</button>
-        <button type="button" class="btn ghost" id="e-noimg">移除</button>
+        <button type="button" class="btn ghost" data-pick="${kind}">${icon('image')}圖庫</button>
+        <button type="button" class="btn ghost" data-up="${kind}">${icon('upload')}上傳</button>
+        <button type="button" class="btn ghost" data-rm="${kind}">移除</button>
       </div>
-      <input type="file" id="e-file" accept="image/*" hidden>
-    </div></div>
+    </div></div>`).join('')}
+    <input type="file" id="e-file" accept="image/*" hidden>
     <div class="sheet-foot">
       <button class="btn ghost" data-close>取消</button>
       <button class="btn" id="e-save">${icon('check')}儲存</button>
@@ -767,8 +772,10 @@ function openEdit(id) {
   };
   const drawAvatar = () => {
     readForm();
-    f('#e-av').innerHTML = `<span style="${colorVars(d.color)}">${avatarHTML(d, 'lg')}</span>`;
-    f('#e-noimg').hidden = !d.imageId;
+    const banner = imageData(d.bannerId);
+    f('#e-prev-square').innerHTML = `<span style="${colorVars(d.color)}">${avatarHTML(d, 'lg')}</span>`;
+    f('#e-prev-wide').innerHTML = `<span class="banner-prev" style="${colorVars(d.color)}">${banner ? `<img src="${esc(banner)}" alt="">` : ''}</span>`;
+    for (const [kind, slot] of Object.entries(IMG_SLOTS)) f(`[data-rm="${kind}"]`).hidden = !d[slot.key];
   };
   drawAvatar();
   f('#e-title').addEventListener('input', drawAvatar);
@@ -790,25 +797,35 @@ function openEdit(id) {
     const pw = await openGenerator();
     if (pw) { f('#e-pw').value = pw; f('#e-pw').type = 'text'; }
   };
-  f('#e-gallery').onclick = async () => {
-    const picked = await openGallery(true);
-    if (picked) { d.imageId = picked; drawAvatar(); }
-  };
-  f('#e-upload').onclick = () => f('#e-file').click();
+  let upKind = 'square';
+  el.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-pick],[data-up],[data-rm]');
+    if (!b) return;
+    if (b.dataset.pick) {
+      const kind = b.dataset.pick;
+      const picked = await openGallery(kind);
+      if (picked) { d[IMG_SLOTS[kind].key] = picked; drawAvatar(); }
+    } else if (b.dataset.up) {
+      upKind = b.dataset.up;
+      f('#e-file').click();
+    } else if (b.dataset.rm) {
+      d[IMG_SLOTS[b.dataset.rm].key] = '';
+      drawAvatar();
+    }
+  });
   f('#e-file').onchange = async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    const imgId = await addImage(file);
-    if (imgId) { d.imageId = imgId; drawAvatar(); }
+    const imgId = await addImage(file, upKind);
+    if (imgId) { d[IMG_SLOTS[upKind].key] = imgId; drawAvatar(); }
   };
-  f('#e-noimg').onclick = () => { d.imageId = ''; drawAvatar(); };
 
   f('#e-save').onclick = async () => {
     readForm();
     if (!d.title) d.title = hostOf(d.url) || '未命名';
     const t = now();
-    const fields = { title: d.title, username: d.username, password: d.password, url: d.url, notes: d.notes, color: d.color, categoryId: d.categoryId, imageId: d.imageId };
+    const fields = { title: d.title, username: d.username, password: d.password, url: d.url, notes: d.notes, color: d.color, categoryId: d.categoryId, iconId: d.iconId, bannerId: d.bannerId };
     if (orig) {
       Object.assign(orig, fields, { updatedAt: t });
     } else {
@@ -898,28 +915,29 @@ function loadImage(file) {
   });
 }
 // 選圖 → 剪裁 → 縮圖 → 加密存進圖庫。回傳圖片 id（取消則回傳空字串）
-async function addImage(file) {
+async function addImage(file, kind) {
   let img;
   try { img = await loadImage(file); } catch { toast('無法讀取這張圖片'); return ''; }
-  const data = await openCropper(img);
+  const data = await openCropper(img, kind);
   if (!data) return '';
   const id = uid();
-  S.data.images.push({ id, data, updatedAt: now() });
+  S.data.images.push({ id, data, kind, updatedAt: now() });
   await persist();
   return id;
 }
 
-const CROP_RATIOS = {
-  wide: { label: '橫幅 2:1', r: 2, outW: 800 },
-  square: { label: '正方形 1:1', r: 1, outW: 480 },
+// 兩種圖片：小圖示（便利貼左側、詳細頁頭像）與橫幅（便利貼右側、詳細頁大圖）
+const IMG_SLOTS = {
+  square: { label: '小圖示（1:1）', key: 'iconId', r: 1, outW: 480 },
+  wide: { label: '橫幅圖片（2:1）', key: 'bannerId', r: 2, outW: 800 },
 };
 
-function openCropper(img) {
+function openCropper(img, kind) {
   return new Promise((resolve) => {
     let result = null;
+    const ratio = IMG_SLOTS[kind];
     const el = openModal(`
-      <div class="sheet-head"><h2>剪裁圖片</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
-      <div class="crop-ratios">${Object.entries(CROP_RATIOS).map(([k, v]) => `<button class="chip ${k === 'wide' ? 'on' : ''}" data-ratio="${k}">${v.label}</button>`).join('')}</div>
+      <div class="sheet-head"><h2>剪裁${ratio.label}</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
       <div class="crop-stage" id="cr-stage"><div class="crop-frame" id="cr-frame"></div></div>
       <p class="hint" style="text-align:center">拖曳移動・雙指縮放</p>
       <label class="field crop-zoom">${icon('search')}<input type="range" id="cr-zoom" min="0" max="1000" value="0" aria-label="縮放"></label>
@@ -932,7 +950,6 @@ function openCropper(img) {
     imgEl.draggable = false;
     stage.prepend(imgEl);
     const iw = img.naturalWidth, ih = img.naturalHeight;
-    let ratio = CROP_RATIOS.wide;
     const F = { x: 0, y: 0, w: 0, h: 0 }; // 剪裁框（相對於 stage）
     let s = 1, tx = 0, ty = 0, minS = 1;  // 圖片的縮放與位移
     const MAX_ZOOM = 5;
@@ -970,11 +987,6 @@ function openCropper(img) {
     };
     requestAnimationFrame(layout);
 
-    $$('[data-ratio]', el).forEach((b) => b.addEventListener('click', () => {
-      ratio = CROP_RATIOS[b.dataset.ratio];
-      $$('[data-ratio]', el).forEach((x) => x.classList.toggle('on', x === b));
-      layout();
-    }));
     zoom.addEventListener('input', () => {
       zoomTo(minS * Math.pow(MAX_ZOOM, zoom.value / 1000), F.x + F.w / 2, F.y + F.h / 2);
     });
@@ -1034,31 +1046,47 @@ function openCropper(img) {
   });
 }
 
-function openGallery(pick = false) {
+// pickKind 為 'square' / 'wide' 時是「選圖」模式，只顯示該比例的圖；null 時是管理模式
+function openGallery(pickKind = null) {
   return new Promise((resolve) => {
     let result = null;
+    let upKind = pickKind || 'square';
+    const title = pickKind ? `選擇${IMG_SLOTS[pickKind].label}` : '圖庫';
     const el = openModal(`
-      <div class="sheet-head"><h2>${pick ? '選擇圖示' : '圖庫'}</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
+      <div class="sheet-head"><h2>${title}</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
       <p class="hint" style="margin:-6px 2px 14px">上傳時可以剪裁範圍，圖片會自動縮小、加密存在本機，也會包含在備份檔裡。</p>
-      <div class="gallery" id="gal"></div>
+      <div id="gal"></div>
       <input type="file" id="g-file" accept="image/*" multiple hidden>`, { onClose: () => resolve(result) });
+    const tile = (i) => `<div class="g-item" data-img="${esc(i.id)}" role="button" tabindex="0"><img src="${esc(i.data)}" alt=""><button class="del" data-del="${esc(i.id)}" aria-label="刪除圖片">${icon('x')}</button></div>`;
+    const grid = (kind, list, upload) => `<div class="gallery ${kind === 'wide' ? 'wide' : ''}">${upload ? `<button class="g-item upload" data-gup="${kind}" aria-label="上傳圖片">${icon('plus')}</button>` : ''}${list.map(tile).join('')}</div>`;
     const draw = () => {
       const imgs = S.data.images.filter((i) => !i.deleted);
-      $('#gal', el).innerHTML = `<button class="g-item upload" id="g-up" aria-label="上傳圖片">${icon('plus')}</button>` +
-        imgs.map((i) => `<div class="g-item" data-img="${esc(i.id)}" role="button" tabindex="0"><img src="${esc(i.data)}" alt=""><button class="del" data-del="${esc(i.id)}" aria-label="刪除圖片">${icon('x')}</button></div>`).join('');
+      const legacy = imgs.filter((i) => !i.kind);
+      if (pickKind) {
+        // 舊版沒有比例資訊的圖片兩邊都可以選
+        $('#gal', el).innerHTML = grid(pickKind, imgs.filter((i) => i.kind === pickKind || !i.kind), true);
+        return;
+      }
+      $('#gal', el).innerHTML = Object.entries(IMG_SLOTS).map(([kind, slot]) =>
+        `<h3 class="g-title">${slot.label}</h3>${grid(kind, imgs.filter((i) => i.kind === kind), true)}`).join('') +
+        (legacy.length ? `<h3 class="g-title">舊圖片</h3>${grid('square', legacy, false)}` : '');
     };
     draw();
     $('#g-file', el).onchange = async (e) => {
-      for (const file of e.target.files) await addImage(file);
+      let lastId = '';
+      for (const file of e.target.files) lastId = (await addImage(file, upKind)) || lastId;
       e.target.value = '';
       draw();
+      // 選圖模式下上傳完直接選用
+      if (pickKind && lastId) { result = lastId; closeModal(); }
     };
     $('#gal', el).onclick = async (e) => {
-      if (e.target.closest('#g-up')) return $('#g-file', el).click();
+      const up = e.target.closest('[data-gup]');
+      if (up) { upKind = up.dataset.gup; return $('#g-file', el).click(); }
       const del = e.target.closest('[data-del]');
       if (del) {
         const id = del.dataset.del;
-        const used = notes().filter((n) => n.imageId === id);
+        const used = notes().filter((n) => n.iconId === id || n.bannerId === id);
         const ok = await ask({
           title: '刪除圖片',
           message: used.length ? `有 ${used.length} 張便利貼正在使用這張圖片，刪除後會改回預設圖示。` : '確定要刪除這張圖片嗎？',
@@ -1066,7 +1094,11 @@ function openGallery(pick = false) {
         });
         if (!ok) return;
         const t = now();
-        used.forEach((n) => { n.imageId = ''; n.updatedAt = t; });
+        used.forEach((n) => {
+          if (n.iconId === id) n.iconId = '';
+          if (n.bannerId === id) n.bannerId = '';
+          n.updatedAt = t;
+        });
         const i = S.data.images.findIndex((x) => x.id === id);
         S.data.images[i] = { id, deleted: true, updatedAt: t };
         await persist();
@@ -1075,7 +1107,7 @@ function openGallery(pick = false) {
         return;
       }
       const item = e.target.closest('[data-img]');
-      if (item && pick) { result = item.dataset.img; closeModal(); }
+      if (item && pickKind) { result = item.dataset.img; closeModal(); }
     };
   });
 }
@@ -1180,7 +1212,7 @@ function openMenu() {
     if (m === 'export') exportBackup();
     else if (m === 'import') $('#m-file', el).click();
     else if (m === 'cats') openCategories();
-    else if (m === 'gallery') openGallery(false);
+    else if (m === 'gallery') openGallery(null);
     else if (m === 'pw') changePassword();
     else if (m === 'lock') lock();
     else if (m === 'install') installApp();
