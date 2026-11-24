@@ -343,6 +343,36 @@ textarea.input { resize: vertical; min-height: 84px; }
 }
 .g-item.upload { display: flex; align-items: center; justify-content: center; color: var(--ink); font-size: 26px; border: 2px dashed var(--ink-soft); background: transparent; box-shadow: none; }
 
+/* 剪裁 */
+.crop-ratios { display: flex; gap: 8px; margin-bottom: 12px; }
+.crop-ratios .chip { background: #fff; box-shadow: var(--shadow); }
+.crop-ratios .chip.on { background: var(--ink); }
+.crop-stage {
+  position: relative; overflow: hidden;
+  height: min(62vw, 330px);
+  border-radius: 16px;
+  background: #2f2c36;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  cursor: grab;
+}
+.crop-stage img {
+  position: absolute; left: 0; top: 0;
+  transform-origin: 0 0;
+  max-width: none; pointer-events: none;
+}
+.crop-frame {
+  position: absolute; pointer-events: none;
+  border: 2px solid #fff; border-radius: 6px;
+  box-shadow: 0 0 0 9999px rgba(40, 36, 50, .55);
+}
+.crop-frame::before, .crop-frame::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, .35);
+}
+.crop-frame::before { left: 33.33%; right: 33.33%; border-top: 0; border-bottom: 0; }
+.crop-frame::after { top: 33.33%; bottom: 33.33%; border-left: 0; border-right: 0; }
+.crop-zoom { display: flex; align-items: center; gap: 10px; margin: 2px 4px 0; color: var(--ink); }
+
 /* 選單 */
 .menu { background: #fff; border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
 .menu button {

@@ -897,29 +897,141 @@ function loadImage(file) {
     img.src = url;
   });
 }
+// 選圖 → 剪裁 → 縮圖 → 加密存進圖庫。回傳圖片 id（取消則回傳空字串）
 async function addImage(file) {
-  try {
-    const img = await loadImage(file);
-    const max = 480;
-    const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round(img.naturalWidth * s));
-    c.height = Math.max(1, Math.round(img.naturalHeight * s));
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    let data = c.toDataURL('image/webp', 0.86);
-    if (!data.startsWith('data:image/webp')) {
-      data = c.toDataURL('image/png');
-      if (data.length > 350000) data = c.toDataURL('image/jpeg', 0.86);
-    }
-    const t = now();
-    const id = uid();
-    S.data.images.push({ id, data, updatedAt: t });
-    await persist();
-    return id;
-  } catch {
-    toast('無法讀取這張圖片');
-    return '';
-  }
+  let img;
+  try { img = await loadImage(file); } catch { toast('無法讀取這張圖片'); return ''; }
+  const data = await openCropper(img);
+  if (!data) return '';
+  const id = uid();
+  S.data.images.push({ id, data, updatedAt: now() });
+  await persist();
+  return id;
+}
+
+const CROP_RATIOS = {
+  wide: { label: '橫幅 2:1', r: 2, outW: 800 },
+  square: { label: '正方形 1:1', r: 1, outW: 480 },
+};
+
+function openCropper(img) {
+  return new Promise((resolve) => {
+    let result = null;
+    const el = openModal(`
+      <div class="sheet-head"><h2>剪裁圖片</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
+      <div class="crop-ratios">${Object.entries(CROP_RATIOS).map(([k, v]) => `<button class="chip ${k === 'wide' ? 'on' : ''}" data-ratio="${k}">${v.label}</button>`).join('')}</div>
+      <div class="crop-stage" id="cr-stage"><div class="crop-frame" id="cr-frame"></div></div>
+      <p class="hint" style="text-align:center">拖曳移動・雙指縮放</p>
+      <label class="field crop-zoom">${icon('search')}<input type="range" id="cr-zoom" min="0" max="1000" value="0" aria-label="縮放"></label>
+      <div class="sheet-foot"><button class="btn ghost" data-close>取消</button><button class="btn" id="cr-ok">${icon('check')}完成</button></div>`,
+    { onClose: () => resolve(result) });
+
+    const stage = $('#cr-stage', el), frameEl = $('#cr-frame', el), zoom = $('#cr-zoom', el);
+    const imgEl = img; // 已載入的圖片元素直接放進畫面
+    imgEl.alt = '';
+    imgEl.draggable = false;
+    stage.prepend(imgEl);
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    let ratio = CROP_RATIOS.wide;
+    const F = { x: 0, y: 0, w: 0, h: 0 }; // 剪裁框（相對於 stage）
+    let s = 1, tx = 0, ty = 0, minS = 1;  // 圖片的縮放與位移
+    const MAX_ZOOM = 5;
+
+    const clamp = () => {
+      s = Math.min(Math.max(s, minS), minS * MAX_ZOOM);
+      tx = Math.min(F.x, Math.max(F.x + F.w - iw * s, tx));
+      ty = Math.min(F.y, Math.max(F.y + F.h - ih * s, ty));
+    };
+    const draw = () => {
+      clamp();
+      imgEl.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+      zoom.value = Math.round((Math.log(s / minS) / Math.log(MAX_ZOOM)) * 1000);
+    };
+    // 以 (cx, cy) 為中心縮放
+    const zoomTo = (ns, cx, cy) => {
+      ns = Math.min(Math.max(ns, minS), minS * MAX_ZOOM);
+      tx = cx - ((cx - tx) * ns) / s;
+      ty = cy - ((cy - ty) * ns) / s;
+      s = ns;
+      draw();
+    };
+    const layout = () => {
+      const sw = stage.clientWidth, sh = stage.clientHeight, pad = 18;
+      F.w = Math.min(sw - pad * 2, (sh - pad * 2) * ratio.r);
+      F.h = F.w / ratio.r;
+      F.x = (sw - F.w) / 2;
+      F.y = (sh - F.h) / 2;
+      Object.assign(frameEl.style, { left: F.x + 'px', top: F.y + 'px', width: F.w + 'px', height: F.h + 'px' });
+      minS = Math.max(F.w / iw, F.h / ih);
+      s = minS;
+      tx = F.x + (F.w - iw * s) / 2;
+      ty = F.y + (F.h - ih * s) / 2;
+      draw();
+    };
+    requestAnimationFrame(layout);
+
+    $$('[data-ratio]', el).forEach((b) => b.addEventListener('click', () => {
+      ratio = CROP_RATIOS[b.dataset.ratio];
+      $$('[data-ratio]', el).forEach((x) => x.classList.toggle('on', x === b));
+      layout();
+    }));
+    zoom.addEventListener('input', () => {
+      zoomTo(minS * Math.pow(MAX_ZOOM, zoom.value / 1000), F.x + F.w / 2, F.y + F.h / 2);
+    });
+
+    // 拖曳與雙指縮放
+    const pts = new Map();
+    let last = null;
+    const pos = (e) => { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const gesture = () => {
+      const p = [...pts.values()];
+      if (p.length === 1) return { x: p[0].x, y: p[0].y, d: 0 };
+      return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2, d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) };
+    };
+    stage.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      stage.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, pos(e));
+      last = gesture();
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId) || !last) return;
+      pts.set(e.pointerId, pos(e));
+      const g = gesture();
+      tx += g.x - last.x;
+      ty += g.y - last.y;
+      if (g.d && last.d) zoomTo((s * g.d) / last.d, g.x, g.y); else draw();
+      last = g;
+    });
+    const up = (e) => { pts.delete(e.pointerId); last = pts.size ? gesture() : null; };
+    stage.addEventListener('pointerup', up);
+    stage.addEventListener('pointercancel', up);
+    stage.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const p = pos(e);
+      zoomTo(s * Math.exp(-e.deltaY / 400), p.x, p.y);
+    }, { passive: false });
+
+    $('#cr-ok', el).onclick = () => {
+      // 換算回原圖座標；原圖不夠大時不放大，避免變糊
+      const sx = (F.x - tx) / s, sy = (F.y - ty) / s, sw = F.w / s, sh = F.h / s;
+      const outW = Math.max(1, Math.round(Math.min(ratio.outW, sw)));
+      const outH = Math.max(1, Math.round(outW / ratio.r));
+      const c = document.createElement('canvas');
+      c.width = outW;
+      c.height = outH;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+      let data = c.toDataURL('image/webp', 0.86);
+      if (!data.startsWith('data:image/webp')) {
+        data = c.toDataURL('image/png');
+        if (data.length > 400000) data = c.toDataURL('image/jpeg', 0.86);
+      }
+      result = data;
+      closeModal();
+    };
+  });
 }
 
 function openGallery(pick = false) {
@@ -927,7 +1039,7 @@ function openGallery(pick = false) {
     let result = null;
     const el = openModal(`
       <div class="sheet-head"><h2>${pick ? '選擇圖示' : '圖庫'}</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
-      <p class="hint" style="margin:-6px 2px 14px">圖片會縮小後加密存在本機，也會包含在備份檔裡。</p>
+      <p class="hint" style="margin:-6px 2px 14px">上傳時可以剪裁範圍，圖片會自動縮小、加密存在本機，也會包含在備份檔裡。</p>
       <div class="gallery" id="gal"></div>
       <input type="file" id="g-file" accept="image/*" multiple hidden>`, { onClose: () => resolve(result) });
     const draw = () => {
