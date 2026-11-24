@@ -238,7 +238,7 @@ function ask({ title, message = '', input = null, ok = '確定', cancel = '取�
     let result = null;
     const el = openModal(`
       <div class="sheet-head"><h2>${esc(title)}</h2></div>
-      ${message ? `<p style="margin:0 2px 14px">${message}</p>` : ''}
+      ${message ? `<p style="margin:0 0.125rem 0.875rem">${message}</p>` : ''}
       ${input ? `<input class="input ${input.type === 'password' ? 'mono' : ''}" id="ask-in" type="${input.type || 'text'}" placeholder="${esc(input.placeholder || '')}" value="${esc(input.value || '')}" autocomplete="${input.type === 'password' ? 'current-password' : 'off'}" maxlength="${input.maxlength || 200}">` : ''}
       <p class="error" id="ask-err"></p>
       <div class="sheet-foot">
@@ -383,7 +383,7 @@ function renderSetup() {
     <form id="f" novalidate>
       ${pwInput('p1', '主密碼（至少 8 個字元）', 'new-password')}
       <div class="meter"><i id="meter"></i></div><p class="hint" id="hint"></p>
-      <div style="height:10px"></div>
+      <div style="height:0.625rem"></div>
       ${pwInput('p2', '再輸入一次', 'new-password')}
       <div class="warn">⚠ 主密碼<b>無法找回</b>。忘記的話，這裡的資料和所有備份檔都將永遠打不開，請一定要記好。</div>
       <button class="btn block" id="go">建立</button>
@@ -674,7 +674,7 @@ function openDetail(id) {
 
   const el = openModal(`
     <div class="hero" style="${colorVars(n.color)}">${img ? `<img src="${esc(img)}" alt="">` : ''}
-      <button class="icon-btn" data-close aria-label="關閉" style="position:absolute;top:10px;right:10px;width:34px;height:34px">${icon('x')}</button>
+      <button class="icon-btn" data-close aria-label="關閉" style="position:absolute;top:0.625rem;right:0.625rem;width:2.125rem;height:2.125rem">${icon('x')}</button>
     </div>
     <div class="hero-title" style="${colorVars(n.color)}">${avatarHTML(n, 'lg')}<h2>${esc(n.title || '未命名')}</h2></div>
     <div class="rows">
@@ -877,9 +877,9 @@ function openGenerator() {
     const el = openModal(`
       <div class="sheet-head"><h2>密碼產生器</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
       <div class="gen-out mono" id="g-out"></div>
-      <div class="meter" style="margin:-4px 4px 4px"><i id="g-meter"></i></div><p class="hint" id="g-hint" style="margin-bottom:14px"></p>
+      <div class="meter" style="margin:-4px 0.25rem 0.25rem"><i id="g-meter"></i></div><p class="hint" id="g-hint" style="margin-bottom:0.875rem"></p>
       <label class="field"><span>長度：<b id="g-len">${o.length}</b></span><input type="range" id="g-range" min="8" max="48" value="${o.length}"></label>
-      <div class="rows" style="padding:2px 12px">
+      <div class="rows" style="padding:0.125rem 0.75rem">
         ${tog('upper', '大寫字母 A–Z')}${tog('lower', '小寫字母 a–z')}${tog('digits', '數字 0–9')}${tog('symbols', '符號 !@#…')}${tog('noAmbig', '排除易混淆字元（I l 1 O 0 o）')}
       </div>
       <div class="sheet-foot">
@@ -1054,7 +1054,7 @@ function openGallery(pickKind = null) {
     const title = pickKind ? `選擇${IMG_SLOTS[pickKind].label}` : '圖庫';
     const el = openModal(`
       <div class="sheet-head"><h2>${title}</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
-      <p class="hint" style="margin:-6px 2px 14px">上傳時可以剪裁範圍，圖片會自動縮小、加密存在本機，也會包含在備份檔裡。</p>
+      <p class="hint" style="margin:-6px 0.125rem 0.875rem">上傳時可以剪裁範圍，圖片會自動縮小、加密存在本機，也會包含在備份檔裡。</p>
       <div id="gal"></div>
       <input type="file" id="g-file" accept="image/*" multiple hidden>`, { onClose: () => resolve(result) });
     const tile = (i) => `<div class="g-item" data-img="${esc(i.id)}" role="button" tabindex="0"><img src="${esc(i.data)}" alt=""><button class="del" data-del="${esc(i.id)}" aria-label="刪除圖片">${icon('x')}</button></div>`;
@@ -1141,7 +1141,7 @@ function openCategories() {
         <button class="icon-btn flat" data-a="down" ${i === cs.length - 1 ? 'disabled style="opacity:.3"' : ''} aria-label="下移">${icon('down')}</button>
         <button class="icon-btn flat" data-a="rename" aria-label="重新命名">${icon('edit')}</button>
         <button class="icon-btn flat" data-a="del" aria-label="刪除">${icon('trash')}</button>
-      </div>`).join('') : '<p class="hint" style="padding:14px;text-align:center">還沒有分類</p>';
+      </div>`).join('') : '<p class="hint" style="padding:0.875rem;text-align:center">還沒有分類</p>';
   };
   draw();
   $('#cat-new', el).onclick = async () => { if (await newCategoryPrompt()) draw(); };
@@ -1242,8 +1242,8 @@ async function exportBackup() {
   };
   const el = openModal(`
     <div class="sheet-head"><h2>匯出備份</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
-    <p style="margin:0 2px 10px">備份檔已用你的<b>主密碼</b>加密，沒有密碼的人打不開。</p>
-    <p class="hint" style="margin:0 2px 16px">檔案會存到手機的「下載」資料夾。建議再另存一份到 Google 雲端硬碟，換手機時就能用「從備份還原」。</p>
+    <p style="margin:0 0.125rem 0.625rem">備份檔已用你的<b>主密碼</b>加密，沒有密碼的人打不開。</p>
+    <p class="hint" style="margin:0 0.125rem 1rem">檔案會存到手機的「下載」資料夾。建議再另存一份到 Google 雲端硬碟，換手機時就能用「從備份還原」。</p>
     <div class="sheet-foot" style="flex-direction:column">
       ${canShare ? `<button class="btn" id="x-share">${icon('share')}分享／存到「檔案」</button>` : ''}
       <button class="btn ${canShare ? 'ghost' : ''}" id="x-dl">${icon('download')}下載檔案</button>
@@ -1302,7 +1302,7 @@ async function changePassword() {
     ${pwInput('c0', '目前的主密碼', 'current-password')}
     ${pwInput('c1', '新的主密碼（至少 8 個字元）', 'new-password')}
     <div class="meter"><i id="c-meter"></i></div><p class="hint" id="c-hint"></p>
-    <div style="height:10px"></div>
+    <div style="height:0.625rem"></div>
     ${pwInput('c2', '再輸入一次新的主密碼', 'new-password')}
     <div class="warn">變更後，<b>舊的備份檔仍然要用舊密碼</b>才能打開。建議變更後馬上匯出一份新備份。</div>
     <p class="error" id="c-err"></p>
