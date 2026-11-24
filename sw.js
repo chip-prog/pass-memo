@@ -1,8 +1,8 @@
 // 離線快取：只快取 App 本身的檔案，不會碰到你的資料
-const CACHE = 'pass-memo-v6';
+const CACHE = 'pass-memo-v7';
 const ASSETS = [
   './', 'index.html', 'boot.js', 'style.css', 'app.js', 'vault.js', 'manifest.webmanifest',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
+  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/mascot.png',
   'fonts/yomogi-title.woff2', 'fonts/quicksand-300.woff2', 'fonts/quicksand-400.woff2', 'fonts/quicksand-500.woff2',
 ];
 

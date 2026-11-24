@@ -116,6 +116,14 @@ textarea.input { resize: vertical; min-height: 5.25rem; }
   display: flex; align-items: center; justify-content: center;
 }
 .mascot svg { width: 4.875rem; height: 4.875rem; }
+/* 登入畫面的角色頭像 */
+.mascot.portrait {
+  width: 9rem; height: 9rem;
+  overflow: hidden;
+  border: 0.25rem solid #fff;
+  box-shadow: 0 0.375rem 1.25rem rgba(150, 140, 200, .35);
+}
+.mascot.portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lock h1 { font-weight: 400; font-size: 1.25rem; color: var(--ink); letter-spacing: .12em; margin: 0.25rem 0 0.25rem; }
 .lock .sub { color: var(--ink-soft); font-size: 0.875rem; margin: 0 0 1.375rem; letter-spacing: .06em; }
 .lock form { text-align: left; }

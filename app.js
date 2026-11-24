@@ -347,7 +347,7 @@ function lockShell(inner) {
   modalRoot.innerHTML = '';
   app.innerHTML = `<div class="lock"><div class="lock-card">
     <div class="logo">秘密の手帳</div>
-    <div class="mascot">${MASCOT}</div>
+    <div class="mascot portrait"><img src="icons/mascot.png" alt=""></div>
     ${inner}
   </div></div>`;
 }
