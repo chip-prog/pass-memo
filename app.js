@@ -342,7 +342,7 @@ async function lock() {
 function lockShell(inner) {
   modalRoot.innerHTML = '';
   app.innerHTML = `<div class="lock"><div class="lock-card">
-    <div class="logo">pass memo</div>
+    <div class="logo">秘密の手帳</div>
     <div class="mascot">${MASCOT}</div>
     ${inner}
   </div></div>`;
@@ -490,7 +490,7 @@ function renderMain() {
   app.innerHTML = `
   <div class="wrap ${view.sorting ? 'sorting' : ''}" id="main">
     <header class="top">
-      <div class="title-block"><div class="logo">pass memo</div><small>密碼便利貼</small></div>
+      <div class="title-block"><div class="logo">秘密の手帳</div><small>PASS MEMO</small></div>
       <div class="actions">
         <button class="icon-btn ${view.sorting ? 'on' : ''}" id="sortBtn" aria-label="排序">${icon(view.sorting ? 'check' : 'sort')}</button>
         <button class="icon-btn" id="lockBtn" aria-label="上鎖">${icon('lock')}</button>
@@ -1054,6 +1054,7 @@ function openMenu() {
       <button data-m="cats">${icon('tag')}<span class="grow">管理分類</span></button>
       <button data-m="gallery">${icon('image')}<span class="grow">圖庫</span></button>
     </div>
+    ${installPrompt ? `<div class="menu"><button data-m="install">${icon('download')}<span class="grow">安裝到主畫面<small>像一般 App 一樣從桌面開啟</small></span></button></div>` : ''}
     <div class="menu">
       <button data-m="pw">${icon('key')}<span class="grow">變更主密碼</span></button>
       <button data-m="lock">${icon('lock')}<span class="grow">立即上鎖</span></button>
@@ -1070,6 +1071,7 @@ function openMenu() {
     else if (m === 'gallery') openGallery(false);
     else if (m === 'pw') changePassword();
     else if (m === 'lock') lock();
+    else if (m === 'install') installApp();
   });
   $('#m-file', el).onchange = (e) => {
     const file = e.target.files[0];
@@ -1097,7 +1099,7 @@ async function exportBackup() {
   const el = openModal(`
     <div class="sheet-head"><h2>匯出備份</h2><button class="icon-btn flat" data-close aria-label="關閉">${icon('x')}</button></div>
     <p style="margin:0 2px 10px">備份檔已用你的<b>主密碼</b>加密，沒有密碼的人打不開。</p>
-    <p class="hint" style="margin:0 2px 16px">建議存到雲端硬碟或 iCloud「檔案」，換手機時就能用「從備份還原」。</p>
+    <p class="hint" style="margin:0 2px 16px">檔案會存到手機的「下載」資料夾。建議再另存一份到 Google 雲端硬碟，換手機時就能用「從備份還原」。</p>
     <div class="sheet-foot" style="flex-direction:column">
       ${canShare ? `<button class="btn" id="x-share">${icon('share')}分享／存到「檔案」</button>` : ''}
       <button class="btn ${canShare ? 'ghost' : ''}" id="x-dl">${icon('download')}下載檔案</button>
@@ -1181,6 +1183,18 @@ async function changePassword() {
     await closeAll();
     toast('主密碼已變更', 3000);
   };
+}
+
+/* ================= 安裝（Android Chrome） ================= */
+let installPrompt = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
+addEventListener('appinstalled', () => { installPrompt = null; toast('已安裝到主畫面'); });
+async function installApp() {
+  if (!installPrompt) return;
+  const p = installPrompt;
+  installPrompt = null;
+  await closeAll();
+  p.prompt();
 }
 
 /* ================= 全域 ================= */

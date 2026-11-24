@@ -1,3 +1,5 @@
+/* 標題字只收錄「秘密の手帳」五個字（Yomogi，OFL 授權） */
+@font-face { font-family: 'Yomogi Title'; font-display: block; src: url(fonts/yomogi-title.woff2) format('woff2'); }
 @font-face { font-family: 'Quicksand'; font-weight: 300; font-display: swap; src: url(fonts/quicksand-300.woff2) format('woff2'); }
 @font-face { font-family: 'Quicksand'; font-weight: 400; font-display: swap; src: url(fonts/quicksand-400.woff2) format('woff2'); }
 @font-face { font-family: 'Quicksand'; font-weight: 500; font-display: swap; src: url(fonts/quicksand-500.woff2) format('woff2'); }
@@ -41,13 +43,12 @@ svg.i { width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex: none; }
   padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 110px);
 }
 .logo {
-  font-family: 'Quicksand', sans-serif;
-  font-weight: 500;
-  font-size: 26px;
-  letter-spacing: .04em;
+  font-family: 'Yomogi Title', var(--font);
+  font-weight: 400;
+  font-size: 30px;
+  letter-spacing: .08em;
   color: var(--ink);
-  font-style: italic;
-  line-height: 1;
+  line-height: 1.1;
 }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -122,7 +123,7 @@ textarea.input { resize: vertical; min-height: 84px; }
 .top { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 0; }
 .top .actions { display: flex; gap: 8px; }
 .top .title-block { display: flex; flex-direction: column; gap: 4px; }
-.top .title-block small { color: var(--ink-soft); letter-spacing: .2em; font-size: 12px; }
+.top .title-block small { font-family: 'Quicksand', sans-serif; color: var(--ink-soft); letter-spacing: .32em; font-size: 11px; padding-left: 2px; }
 
 .search {
   margin: 18px 0 12px;

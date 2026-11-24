@@ -1,6 +1,6 @@
 {
-  "name": "密碼便利貼",
-  "short_name": "密碼便利貼",
+  "name": "秘密の手帳",
+  "short_name": "秘密の手帳",
   "description": "只存在本機、加密保護的密碼便利貼",
   "lang": "zh-Hant",
   "start_url": "./",

@@ -1,4 +1,4 @@
-# 密碼便利貼（pass memo）
+# 秘密の手帳（pass memo）
 
 只存在本機、用主密碼加密的密碼便利貼 PWA。
 
@@ -21,8 +21,8 @@
 
 ## 安裝到手機
 
+- **Android（Pixel 等）**：用 Chrome 開啟網址 → 右上角選單「⋮」→「安裝應用程式」。也可以在 App 內的選單按「安裝到主畫面」。
 - **iPhone**：用 Safari 開啟網址 → 分享 → 加入主畫面。
-- **Android**：用 Chrome 開啟網址 → 選單 → 安裝應用程式／加到主畫面。
 
 ## 注意
 
@@ -30,4 +30,4 @@
 - 清除瀏覽器資料或刪除 App 會清掉本機資料，請定期備份。
 - 之後更新程式時，要修改 `sw.js` 裡的 `CACHE` 版本號，手機才會抓到新版。
 
-字型 Quicksand 採用 SIL Open Font License（見 `fonts/OFL.txt`）。
+標題字型 Yomogi（只收錄「秘密の手帳」五字）與內文字型 Quicksand 皆採用 SIL Open Font License（見 `fonts/OFL.txt`）。
